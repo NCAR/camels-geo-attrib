@@ -24,15 +24,20 @@ from sklearn.utils.extmath import weighted_mode
 import time
 
 # count consecutive 1 elements in a 1D array 
+myCount = lambda ar: [sum(val for _ in group) for val, group in groupby(ar) if val==1]
+
+# count consecutive 1 elements in a 1D array
 def count_runs_ones(binary_array):
     """Return lengths of consecutive runs of 1s in a binary array."""
     # Padding with 0s for edge detection
+    if not np.any(binary_array):
+        return []
     padded = np.pad(binary_array, (1, 1), mode='constant')
     changes = np.diff(padded)
     starts = np.where(changes == 1)[0]
     ends = np.where(changes == -1)[0]
-    return ends - starts
-
+    return (ends - starts).tolist()
+    
 # Helper function to check data availability
 def find_avail_data_df(df, tol):
     return df.notna().mean(axis=1) >= tol
@@ -276,222 +281,290 @@ def seasonality_index(dr_tair, dr_prec):
 
 def high_p_freq_dur(dr: xr.DataArray, p_thresh_mult=5, dayofyear='wateryear') -> xr.Dataset:
     """
+    Calculates frequency and duration of high-precip events (> p_thresh_mult * mean) and their seasonal timing.
     freq_high_p: frequency of high-flow days (> p_thresh_mult times the mean daily flow) day/yr
     mean_high_p_dur: average duration of high-precipitation events over yr (number of consecutive days > 5 times the mean daily flow) day
     """
-    years = np.unique(dr.time.dt.year.values)
-    if dayofyear=='wateryear':
-        years = years[:-1]
-        if len(years)==0:
-            raise Exception('Invalid argument for "dayofyear"')
-        smon=10; sday=1; emon=9; eday=30; yr_adj=1
-    elif dayofyear=='calendar':
-        smon=1; sday=1; emon=12; eday=31; yr_adj=0
+
+    if dayofyear == 'wateryear':
+        smon, sday, emon, eday, yr_adj = 10, 1, 9, 30, 1
+    elif dayofyear == 'calendar':
+        smon, sday, emon, eday, yr_adj = 1, 1, 12, 31, 0
     else:
         raise ValueError('Invalid argument for "dayofyear"')
-        
+
     hru_list = dr['hru'].values
     n_hrus = len(hru_list)
-    
-    ds_high_p = xr.Dataset(data_vars=dict(
-                    high_prec_dur =(["year", "hru"], np.full((len(years),n_hrus), np.nan, dtype='float32')),
-                    high_prec_freq =(["year", "hru"], np.full((len(years),n_hrus), np.nan, dtype='float32')),
-                    high_prec_timing =(["year", "hru"], np.full((len(years),n_hrus), 'None', dtype=np.object_)),
-                    ),
-                    coords=dict(year=years,
-                                hru=hru_list,),
-                    )
+    years = np.unique(dr.time.dt.year.values)
+    if dayofyear == 'wateryear':
+        years = years[:-1]
+        if len(years) == 0:
+            raise Exception('Insufficient years for wateryear analysis.')
 
-    t_axis = dr.dims.index('time')
-    q_thresh=np.mean(dr.values, axis=t_axis)*p_thresh_mult
+    # Pre-compute threshold per HRU
+    q_thresh = dr.mean(dim='time').values * p_thresh_mult
+
+    # Initialize output arrays
+    freq = np.full((len(years), n_hrus), np.nan, dtype='float32')
+    dur = np.full_like(freq, np.nan)
+    timing = np.full((len(years), n_hrus), 'None', dtype=object)
 
     for yi, yr in enumerate(years):
-        time_slice=slice(f'{yr}-{smon:02}-{sday:02}',f'{yr+yr_adj}-{emon:02}-{eday:02}')
-        year_data = dr.sel(time=time_slice)
-        q_array = year_data.values
-        times = year_data['time'].values
-        months = pd.to_datetime(times).month
+        time_slice = slice(f'{yr}-{smon:02}-{sday:02}', f'{yr + yr_adj}-{emon:02}-{eday:02}')
+        dr_yr = dr.sel(time=time_slice)
+        q_array = dr_yr.values
+        time_vals = dr_yr['time'].values
+        months = pd.to_datetime(time_vals).month
         seasons = np.array([SeasonDict[m] for m in months])
-        
-        for h in range(n_hrus):
-            binary = (q_array[:,h] > q_thresh[h]).astype(np.int8)
-            runs = count_runs_ones(binary)
-            
-            if len(runs) == 0:
-                ds_high_p['high_prec_dur'][yi, h] = 0
-                ds_high_p['high_prec_freq'][yi, h] = 0
-            else:
-                ds_high_p['high_prec_dur'][yi, h] = np.mean(runs)
-                ds_high_p['high_prec_freq'][yi, h] = len(runs) # number of events -> len(runs)
 
+        # Apply per HRU
+        for h in range(n_hrus):
+            binary = (q_array[:, h] > q_thresh[h]).astype(np.int8)
+            runs = count_runs_ones(binary)
+
+            freq[yi, h] = len(runs)
+            dur[yi, h] = np.mean(runs) if runs else 0
+
+            if np.any(binary):
                 season_counts = pd.Series(binary).groupby(seasons).sum()
                 if not season_counts.empty:
-                    ds_high_p['high_prec_timing'][yi, h] = season_counts.idxmax()
+                    timing[yi, h] = season_counts.idxmax()
 
-    return ds_high_p
-
+    return xr.Dataset(
+        data_vars=dict(
+            high_prec_freq=(["year", "hru"], freq),
+            high_prec_dur=(["year", "hru"], dur),
+            high_prec_timing=(["year", "hru"], timing),
+        ),
+        coords=dict(
+            year=years,
+            hru=hru_list,
+        ),
+    )
 
 def low_p_freq_dur(dr: xr.DataArray, day_p_thresh_mm=1, dayofyear='wateryear', how2count_freq='day') -> xr.Dataset:
-    # : frequency of low-precipitation days (< 1 mm/day) day/yr
-    # : average duration of low-precipitation events (number of consecutive days < 0.2 times the mean daily flow) day
-
-    years = np.unique(dr.time.dt.year.values)
-    if dayofyear=='wateryear':
-        years = years[:-1]
-        if len(years)==0:
-            raise Exception('Invalid argument for "dayofyear"')
-        smon=10; sday=1; emon=9; eday=30; yr_adj=1
-    elif dayofyear=='calendar':
-        smon=1; sday=1; emon=12; eday=31; yr_adj=0
+    """Efficiently compute frequency, duration, and seasonal timing of low-precip events."""
+    
+    if dayofyear == 'wateryear':
+        smon, sday, emon, eday, yr_adj = 10, 1, 9, 30, 1
+    elif dayofyear == 'calendar':
+        smon, sday, emon, eday, yr_adj = 1, 1, 12, 31, 0
     else:
         raise ValueError('Invalid argument for "dayofyear"')
 
     hru_list = dr['hru'].values
     n_hrus = len(hru_list)
+    years = np.unique(dr.time.dt.year.values)
+    if dayofyear == 'wateryear':
+        years = years[:-1]
+        if len(years) == 0:
+            raise Exception('Insufficient years for wateryear analysis.')
 
-    ds_low_p = xr.Dataset(
-        data_vars=dict(
-            low_prec_dur=(["year", "hru"], np.full((len(years), n_hrus), np.nan, dtype='float32')),
-            low_prec_freq=(["year", "hru"], np.full((len(years), n_hrus), np.nan, dtype='float32')),
-            low_prec_timing=(["year", "hru"], np.full((len(years), n_hrus), 'None', dtype=object)),
-        ),
-        coords=dict(year=years, hru=hru_list),
-    )
+    # Prepare output arrays
+    freq = np.full((len(years), n_hrus), np.nan, dtype='float32')
+    dur = np.full_like(freq, np.nan)
+    timing = np.full((len(years), n_hrus), 'None', dtype=object)
 
     for yi, yr in enumerate(years):
         time_slice = slice(f'{yr}-{smon:02}-{sday:02}', f'{yr + yr_adj}-{emon:02}-{eday:02}')
         year_data = dr.sel(time=time_slice)
-        p_array = year_data.values
-        times = year_data['time'].values
-
-        months = pd.to_datetime(times).month
-        seasons = np.array([SeasonDict[m] for m in months])
+        p_array = year_data.values  # shape: (days, hru)
+        time_vals = pd.to_datetime(year_data['time'].values)
+        seasons = np.array([SeasonDict[m] for m in time_vals.month])
 
         for h in range(n_hrus):
             binary = (p_array[:, h] < day_p_thresh_mm).astype(np.int8)
             runs = count_runs_ones(binary)
 
-            if len(runs) == 0:
-                ds_low_p['low_prec_freq'][yi, h] = 0
-                ds_low_p['low_prec_dur'][yi, h] = 0
-                ds_low_p['low_prec_timing'][yi, h] = 'None'
+            freq_val = 0
+            if how2count_freq == 'event':
+                freq_val = len(runs)
+            elif how2count_freq == 'day':
+                freq_val = np.count_nonzero(binary)
             else:
-                ds_low_p['low_prec_dur'][yi, h] = np.mean(runs)
-                if how2count_freq == 'event':
-                    ds_low_p['low_prec_freq'][yi, h] = len(runs)
-                elif how2count_freq == 'day':
-                    ds_low_p['low_prec_freq'][yi, h] = np.count_nonzero(binary)
-                else:
-                    raise ValueError('Invalid "how2count_freq": should be "event" or "day"')
+                raise ValueError('Invalid "how2count_freq": should be "event" or "day"')
 
-                # Seasonal timing (mode of seasonal counts)
+            freq[yi, h] = freq_val
+            dur[yi, h] = np.mean(runs) if runs else 0
+
+            if np.any(binary):
                 season_counts = pd.Series(binary).groupby(seasons).sum()
                 if not season_counts.empty:
-                    ds_low_p['low_prec_timing'][yi, h] = season_counts.idxmax()
+                    timing[yi, h] = season_counts.idxmax()
 
-    return ds_low_p
+    return xr.Dataset(
+        data_vars=dict(
+            low_prec_freq=(["year", "hru"], freq),
+            low_prec_dur=(["year", "hru"], dur),
+            low_prec_timing=(["year", "hru"], timing),
+        ),
+        coords=dict(
+            year=years,
+            hru=hru_list,
+        ),
+    )
 
-#--- old scripts
-# count consecutive 1 elements in a 1D array 
-myCount = lambda ar: [sum(val for _ in group) for val, group in groupby(ar) if val==1]
+#--- dask aware function 
 
-def high_p_freq_dur_slow(dr: xr.DataArray, p_thresh_mult=5, dayofyear='wateryear') -> xr.Dataset:
-    """
-    freq_high_p: frequency of high-flow days (> p_thresh_mult times the mean daily flow) day/yr
-    mean_high_p_dur: average duration of high-precipitation events over yr (number of consecutive days > 5 times the mean daily flow) day
-    """
-    years = np.unique(dr.time.dt.year.values)
-    if dayofyear=='wateryear':
-        years = years[:-1]
-        if len(years)==0:
-            raise Exception('Invalid argument for "dayofyear"')
-        smon=10; sday=1; emon=9; eday=30; yr_adj=1
-    elif dayofyear=='calendar':
-        smon=1; sday=1; emon=12; eday=31; yr_adj=0
+def process_high_series(series, months, thresh):
+    """Process one HRU time series to compute high-p freq/dur/timing."""
+    binary = (series > thresh).astype(np.int8)
+    runs = count_runs_ones(binary)
+    freq_val = len(runs)
+    dur_val = float(np.mean(runs)) if runs else 0.0
+
+    if np.any(binary):
+        seasons = np.array([SeasonDict[m] for m in months])
+        season_counts = pd.Series(binary).groupby(seasons).sum()
+        timing_val = season_counts.idxmax() if not season_counts.empty else 'None'
+    else:
+        timing_val = 'None'
+
+    return np.array([freq_val, dur_val], dtype=np.float32), timing_val
+
+def low_p_freq_dur_dask(dr: xr.DataArray, p_thresh_mult=5, dayofyear='wateryear') -> xr.Dataset:
+    """Dask-aware calculation of high-precip event frequency, duration, and timing."""
+
+    if dayofyear == 'wateryear':
+        smon, sday, emon, eday, yr_adj = 10, 1, 9, 30, 1
+    elif dayofyear == 'calendar':
+        smon, sday, emon, eday, yr_adj = 1, 1, 12, 31, 0
     else:
         raise ValueError('Invalid argument for "dayofyear"')
 
-    ds_high_p = xr.Dataset(data_vars=dict(
-                    high_prec_dur =(["year", "hru"], np.full((len(years),len(dr['hru'])), np.nan, dtype='float32')),
-                    high_prec_freq =(["year", "hru"], np.full((len(years),len(dr['hru'])), np.nan, dtype='float32')),
-                    high_prec_timing =(["year", "hru"], np.full((len(years),len(dr['hru'])), 'None', dtype=np.object_)),
-                    ),
-                    coords=dict(year=years,
-                                hru=dr['hru'],),
-                    )
+    years = np.unique(dr.time.dt.year.values)
+    if dayofyear == 'wateryear':
+        years = years[:-1]
+        if len(years) == 0:
+            raise Exception('Insufficient years for wateryear analysis.')
 
-    t_axis = dr.dims.index('time')
-    q_thresh=np.mean(dr.values, axis=t_axis)*p_thresh_mult
+    hru_list = dr['hru'].values
+    q_thresh = dr.mean(dim='time') * p_thresh_mult
+
+    # Storage for annual results
+    freq_dur_list = []
+    timing_list = []
 
     for yr in years:
-        time_slice=slice(f'{yr}-{smon}-{sday}',f'{yr+yr_adj}-{emon}-{eday}')
-        datetime1 = dr['time'].sel(time=time_slice)
-        
-        q_array = dr.sel(time=time_slice).values # find annual max flow
-        for sidx, hru in enumerate(dr['hru'].values):
-            binary_array = np.where(q_array[:,sidx] > q_thresh[sidx], 1, 0)
-            count_dups = myCount(binary_array)
-            if not count_dups:
-                ds_high_p['high_prec_dur'].loc[yr, hru] = 0
-                ds_high_p['high_prec_freq'].loc[yr, hru] = 0
-            else:
-                ds_high_p['high_prec_dur'].loc[yr, hru] = np.mean(count_dups)
-                ds_high_p['high_prec_freq'].loc[yr, hru] = len(count_dups) # number of events -> len(count_dups)
-                df = pd.DataFrame(index=datetime1, data=binary_array)
-                max_season = df.groupby(lambda x: SeasonDict.get(x.month)).sum().idxmax().values
-                ds_high_p['high_prec_timing'].loc[yr, hru] = max_season[0]
+        time_slice = slice(f"{yr}-{smon:02}-{sday:02}", f"{yr + yr_adj}-{emon:02}-{eday:02}")
+        dr_yr = dr.sel(time=time_slice)
+        months = dr_yr['time'].dt.month
+        months_array = xr.DataArray(
+            np.broadcast_to(months.values[:, None], dr_yr.shape),
+            dims=("time", "hru"),
+            coords={"time": dr_yr.time, "hru": dr_yr.hru}
+        )
 
-    return ds_high_p
+        # Apply to each HRU time series
+        freq_dur, timing = xr.apply_ufunc(
+            lambda series, m, thresh: process_high_series(series, m, thresh),
+            dr_yr,
+            months_array,
+            q_thresh,
+            input_core_dims=[["time"], ["time"], []],
+            output_core_dims=[["metric"], []],
+            vectorize=True,
+            dask="parallelized",
+            output_dtypes=[np.float32, object],
+        )
+
+        freq_dur = freq_dur.expand_dims(year=[yr])
+        timing = timing.expand_dims(year=[yr])
+
+        freq_dur_list.append(freq_dur)
+        timing_list.append(timing)
+
+    # Combine results across years
+    freq_dur_all = xr.concat(freq_dur_list, dim="year")
+    timing_all = xr.concat(timing_list, dim="year")
+
+    return xr.Dataset(
+        data_vars=dict(
+            high_prec_freq=(["year", "hru"], freq_dur_all.sel(metric=0)),
+            high_prec_dur=(["year", "hru"], freq_dur_all.sel(metric=1)),
+            high_prec_timing=(["year", "hru"], timing_all),
+        ),
+        coords=dict(
+            year=years,
+            hru=hru_list,
+        ),
+    )
 
 
-def low_p_freq_dur_slow(dr: xr.DataArray, day_p_thresh_mm=1, dayofyear='wateryear', how2count_freq='day') -> xr.Dataset:
-    # : frequency of low-precipitation days (< 1 mm/day) day/yr
-    # : average duration of low-precipitation events (number of consecutive days < 0.2 times the mean daily flow) day
-    years = np.unique(dr.time.dt.year.values)
-    if dayofyear=='wateryear':
-        years = years[:-1]
-        if len(years)==0:
-            raise Exception('Invalid argument for "dayofyear"')
-        smon=10; sday=1; emon=9; eday=30; yr_adj=1
-    elif dayofyear=='calendar':
-        smon=1; sday=1; emon=12; eday=31; yr_adj=0
+def process_one_series(binary, months, how2count_freq):
+    """Helper to compute freq, dur, and timing from binary and months."""
+    binary = binary.astype(np.int8)
+    runs = count_runs_ones(binary)
+    freq = len(runs) if how2count_freq == 'event' else np.count_nonzero(binary)
+    dur = float(np.mean(runs)) if runs else 0.0
+
+    if np.any(binary):
+        seasons = np.array([SeasonDict[m] for m in months])
+        season_counts = pd.Series(binary).groupby(seasons).sum()
+        timing = season_counts.idxmax() if not season_counts.empty else 'None'
+    else:
+        timing = 'None'
+
+    return np.array([freq, dur]), timing
+
+def low_p_freq_dur_dask(dr: xr.DataArray, day_p_thresh_mm=1, dayofyear='wateryear', how2count_freq='day') -> xr.Dataset:
+    """Dask-aware computation of low precip frequency, duration, and seasonal timing."""
+    
+    if dayofyear == 'wateryear':
+        smon, sday, emon, eday, yr_adj = 10, 1, 9, 30, 1
+    elif dayofyear == 'calendar':
+        smon, sday, emon, eday, yr_adj = 1, 1, 12, 31, 0
     else:
         raise ValueError('Invalid argument for "dayofyear"')
 
-    ds_low_p = xr.Dataset(data_vars=dict(
-                    low_prec_dur =(["year", "hru"], np.full((len(years),len(dr['hru'])), np.nan, dtype='float32')),
-                    low_prec_freq =(["year", "hru"], np.full((len(years),len(dr['hru'])), np.nan, dtype='float32')),
-                    low_prec_timing =(["year", "hru"], np.full((len(years),len(dr['hru'])), 'None', dtype=np.object_)),
-                    ),
-                    coords=dict(year=years,
-                                hru=dr['hru'],),
-                    )
+    years = np.unique(dr.time.dt.year.values)
+    if dayofyear == 'wateryear':
+        years = years[:-1]
+        if len(years) == 0:
+            raise Exception('Insufficient years for wateryear analysis.')
 
-    t_axis = dr.dims.index('time')
+    hru_list = dr['hru'].values
+    n_hrus = len(hru_list)
+
+    results_freq_dur = []
+    results_timing = []
 
     for yr in years:
-        time_slice=slice(f'{yr}-{smon}-{sday}',f'{yr+yr_adj}-{emon}-{eday}')
-        datetime1 = dr['time'].sel(time=time_slice)
-        
-        p_array = dr.sel(time=time_slice).values # precipitation for one year
-        for sidx, hru in enumerate(dr['hru'].values):
-            binary_array = np.where(p_array[:,sidx] < day_p_thresh_mm, 1, 0)
-            count_dups = myCount(binary_array)
-            if not count_dups:
-                ds_low_p['low_prec_freq'].loc[yr, hru] = 0
-                ds_low_p['low_prec_dur'].loc[yr, hru] = 0
-                ds_low_p['low_prec_timing'].loc[yr, hru] = 'None'
-            else:
-                ds_low_p['low_prec_dur'].loc[yr, hru] = np.mean(count_dups)
-                if how2count_freq=='event':
-                    ds_low_p['low_prec_freq'].loc[yr, hru] = len(count_dups) # number of events -> len(count_dups)
-                elif how2count_freq=='day':
-                    ds_low_p['low_prec_freq'].loc[yr, hru] = np.count_nonzero(binary_array) # number of days -> len(count_dups)
-                else:
-                    raise ValueError('Dang, Invalid argument for "how2count_freq": should be "event" or "day"')
-                
-                df = pd.DataFrame(index=datetime1, data=binary_array)
-                max_season = df.groupby(lambda x: SeasonDict.get(x.month)).sum().idxmax().values
-                ds_low_p['low_prec_timing'].loc[yr, hru] = max_season[0]
-                
-    return ds_low_p
+        time_slice = slice(f'{yr}-{smon:02}-{sday:02}', f'{yr + yr_adj}-{emon:02}-{eday:02}')
+        dr_yr = dr.sel(time=time_slice)
+        binary = (dr_yr < day_p_thresh_mm)
+        binary = binary.chunk({'time': -1})  # ensure time is not chunked
+
+        months = dr_yr['time'].dt.month.values  # eagerly evaluated since small
+        months_bcast = np.broadcast_to(months[:, None], binary.shape)
+
+        # Apply the function across time axis for each HRU
+        freq_dur, timing = xr.apply_ufunc(
+            lambda b, m: process_one_series(b, m, how2count_freq),
+            binary,
+            months_bcast,
+            input_core_dims=[["time"], ["time"]],
+            output_core_dims=[["metric"], []],
+            vectorize=True,
+            dask='parallelized',
+            output_dtypes=[np.float32, object],
+        ).compute()  # compute here to collect results year by year
+
+        results_freq_dur.append(freq_dur)
+        results_timing.append(timing)
+
+    # Stack results
+    results_freq_dur = np.stack(results_freq_dur)  # shape: (years, hru, metric)
+    results_timing = np.stack(results_timing)      # shape: (years, hru)
+
+    return xr.Dataset(
+        data_vars=dict(
+            low_prec_freq=(["year", "hru"], results_freq_dur[:, :, 0]),
+            low_prec_dur=(["year", "hru"], results_freq_dur[:, :, 1]),
+            low_prec_timing=(["year", "hru"], results_timing),
+        ),
+        coords=dict(
+            year=years,
+            hru=hru_list,
+        ),
+    )
