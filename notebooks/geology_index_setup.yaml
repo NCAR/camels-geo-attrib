@@ -1,0 +1,105 @@
+## Configurations used for geology index computation
+
+# ---- Directories and files
+src_dir: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/attributes/ingredient/geology'
+
+# camels
+#catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/gagesII_671_shp_geogr.gpkg' #HCDN_nhru_final_671.buff_fix_holes.CAMELSandTDX_areabias_fix.simp0.001.level1.gpkg'
+#LiMW2015_mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/attributes/scripts/gen_mapping/weight_file/spatialweights_LiMW2015_to_camels.nc'
+#GLHYMPS_mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/attributes/scripts/gen_mapping/weight_file/spatialweights_GLHYMPS_to_camels.nc'
+
+# camelsx-v3
+catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/calib_site_boundary_v3.gpkg'
+LiMW2015_mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_LiMW2015_to_camelsx-v3.nc'
+GLHYMPS_mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_GLHYMPS_to_camelsx-v3.nc'
+
+# HUC12
+#catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/conus_HUC12_merit_v7d_simplified.gpkg'
+#LiMW2015_mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_LiMW2015_to_CONUS_HUC12.nc'
+#GLHYMPS_mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_GLHYMPS_to_CONUS_HUC12.nc'
+
+# ---- attribute geopackage file
+LiMW2015_gpkg: 'LiMW2015_North_America_WGS84.gpkg'
+GLHYMPS_gpkg: 'GLHYMPS_North_America_WGS84.gpkg'
+
+# ---- catchment / computing / output options
+serial: False # False: dask distributed enabled
+catchment_name: 'camelsx-v3' # Catchment case: CONUS_HUC12, camels, camelsx-v3
+saveCSV: True    # True: save attributes for each HRU in csv
+saveNetCDF: True # True: save attributes for each HRU in netcdf
+remap: True     # True: remap meteorological time series to HRUs
+
+# ---- catchment meta
+catch_attrs:
+    CONUS_HUC12:
+        id: 'HUCIDXint'
+    camels:
+        id: 'GAGE_ID'
+    camelsx-v3:
+        id: 'GAGE_NID_INT64'
+
+# ---- geology variables
+# attribute name: descriptions
+LiMW2015_attr:
+    OBJECTID: 'numeric polygon ID'
+    IDENTITY_: 'ID'
+    xx: 'The first level lithological class'
+
+GLHYMPS_attr:
+    OBJECTID: 'numeric polygon ID'
+    IDENTITY_: 'ID'
+    Porosity: 'subsurface porosity'
+    Permeability_permafrost: 'near-surface permeability (log10) with permafrost effects'
+    Permeability_no_permafrost: 'near-surface permeability (log10) neglecting permafrost effects'
+# use Permeability_permafrost
+
+# ----- Misc. information
+GLiM_class:
+    su: 
+        class: "Unconsolidated sediments" 
+        color: "lightgoldenrod1"
+    ss:
+        class: "Siliciclastic sedimentary rocks"
+        color: "goldenrod"
+    sm:
+        class: "Mixed sedimentary rocks"
+        color: "burlywood4"
+    py:
+        class: "Pyroclastics"
+        color: "tan4"
+    sc:
+        class: "Carbonate sedimentary rocks"
+        color: "steelblue3"
+    ev:
+        class: "Evaporites"
+        color: "olivedrab1"
+    mt:
+        class: "Metamorphics"
+        color: "palegreen3"
+    pa:
+        class: "Acid plutonic rocks"
+        color: "brown3"
+    pi:
+        class: "Intermediate plutonic rocks"
+        color: "violetred4"
+    pb:
+        class: "Basic plutonic rocks"
+        color: "purple4"
+    va:
+        class: "Acid volcanic rocks"
+        color: "pink"
+    vi:
+        class: "Intermediate volcanic rocks"
+        color: "orchid2"
+    vb:
+        class: "Basic volcanic rocks"
+        color: "magenta3"
+    ig:
+        class: "Ice and glaciers"
+        color: "paleturquoise1"
+    wb:
+        class: "Water bodies"
+        color: "turquoise2"
+    nd:
+        class: "No Data"
+        color: "slategray"

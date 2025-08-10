@@ -1,0 +1,59 @@
+## Configurations used for geology index computation
+
+# ---- Directories and files
+src_dir: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/attributes/ingredient/modis'
+
+# camels
+#catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/gagesII_671_shp_geogr.gpkg' #HCDN_nhru_final_671.buff_fix_holes.CAMELSandTDX_areabias_fix.simp0.001.level1.gpkg'
+#mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/attributes/scripts/gen_mapping/weight_file/spatialweights_nldas600m_to_camels.nc'
+
+# camelsx-v3
+catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/calib_site_boundary_v3.gpkg'
+mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_nldas600m_to_camelsx-v3.nc'
+
+# HUC12
+#catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/conus_HUC12_merit_v7d_simplified.gpkg'
+#mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_nldas600m_to_CONUS_HUC12.nc'
+
+
+# ---- catchment / computing / output options
+serial: False # False: dask distributed enabled
+catchment_name: 'camelsx-v3' # Catchment case: CONUS_HUC12, camels, camelsx-v3
+saveCSV: True    # True: save attributes for each HRU in csv
+saveNetCDF: True # True: save attributes for each HRU in netcdf
+remap: True     # True: remap meteorological time series to HRUs
+
+# ---- catchment meta
+catch_attrs:
+    CONUS_HUC12:
+        id: 'HUCIDXint'
+    camels:
+        id: 'GAGE_ID'
+    camelsx-v3:
+        id: 'GAGE_NID_INT64'
+
+# ---- topography variables
+# nc variable name: unit, and descriptions
+
+nc_var:
+    - 'landcover'
+    - 'lai'
+
+IGBP:
+    1: 'Evergreen needleleaf forests'
+    2: 'Evergreen broadleaf forests'
+    3: 'Deciduous needleleaf forests'
+    4: 'Deciduous broadleaf forests'
+    5: 'Mixed forests'
+    6: 'Closed shrublands'
+    7: 'Open shrublands'
+    8: 'Woody savannas'
+    9: 'Savannas'
+    10: 'Grasslands'
+    11: 'Permanent wetlands'
+    12: 'Croplands'
+    13: 'Urban and built-up lands'
+    14: 'Cropland/natural vegetation mosaics'
+    15: 'Snow and ice'
+    16: 'Barren'
+    17: 'Water bodies'

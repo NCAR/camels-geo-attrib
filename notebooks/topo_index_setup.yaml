@@ -1,0 +1,48 @@
+## Configurations used for geology index computation
+
+# ---- Directories and files
+src_dir: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/attributes/ingredient/topography'
+
+# camels
+#catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/gagesII_671_shp_geogr.gpkg' #HCDN_nhru_final_671.buff_fix_holes.CAMELSandTDX_areabias_fix.simp0.001.level1.gpkg'
+#mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/attributes/scripts/gen_mapping/weight_file/spatialweights_NLDAS0.02_to_camels.nc'
+
+# camelsx-v3
+#catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/calib_site_boundary_v3.gpkg'
+#mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_NLDAS0.02_to_camelsx-v3.nc'
+
+# HUC12
+catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/conus_HUC12_merit_v7d_simplified.gpkg'
+mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_NLDAS0.02_to_CONUS_HUC12.nc'
+
+# ---- catchment / computing / output options
+serial: False # False: dask distributed enabled
+catchment_name: 'CONUS_HUC12' # Catchment case: CONUS_HUC12, camels, camelsx-v3
+saveCSV: True    # True: save attributes for each HRU in csv
+saveNetCDF: True # True: save attributes for each HRU in netcdf
+remap: True     # True: remap meteorological time series to HRUs
+
+# ---- catchment meta
+catch_attrs:
+    CONUS_HUC12:
+        id: 'HUCIDXint'
+    camels:
+        id: 'GAGE_ID'
+    camelsx-v3:
+        id: 'GAGE_NID_INT64'
+
+# ---- topography variables
+# nc variable name: unit, and descriptions
+nc_topo_dict:
+    elevation: 
+        unit: 'm'
+        long_name: 'mean altitude'
+    slope: 
+        unit: 'percent'
+        long_name: 'mean slope'
+    eastness: 
+        unit: '-'
+        long_name: 'mean eastness - sine of aspect: compass direction that a topographic slope faces, measured in degrees from north clockwise'
+    northness: 
+        unit: '-'
+        long_name: 'mean northness - cosine of aspect: compass direction that a topographic slope faces, measured in degrees from north clockwise'
