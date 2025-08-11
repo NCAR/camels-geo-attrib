@@ -16,7 +16,7 @@ catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/conus_
 mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_NLDAS0.02_to_CONUS_HUC12.nc'
 
 # ---- catchment / computing / output options
-serial: False # False: dask distributed enabled
+serial: True # False: dask distributed enabled
 catchment_name: 'CONUS_HUC12' # Catchment case: CONUS_HUC12, camels, camelsx-v3
 saveCSV: True    # True: save attributes for each HRU in csv
 saveNetCDF: True # True: save attributes for each HRU in netcdf

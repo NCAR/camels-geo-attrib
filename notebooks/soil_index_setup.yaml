@@ -24,7 +24,7 @@ statsgo_mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo
 #statsgo_mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_STATSGO_to_CONUS_HUC12.nc'
 
 # ---- catchment / computing / output options
-serial: False # False: dask distributed enabled
+serial: True # False: dask distributed enabled
 catchment_name: 'camelsx-v3' # Catchment case: CONUS_HUC12, camels, camelsx-v3
 saveCSV: True    # True: save attributes for each HRU in csv
 saveNetCDF: True # True: save attributes for each HRU in netcdf

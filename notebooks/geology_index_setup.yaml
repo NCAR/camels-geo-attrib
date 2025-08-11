@@ -23,7 +23,7 @@ LiMW2015_gpkg: 'LiMW2015_North_America_WGS84.gpkg'
 GLHYMPS_gpkg: 'GLHYMPS_North_America_WGS84.gpkg'
 
 # ---- catchment / computing / output options
-serial: False # False: dask distributed enabled
+serial: True # False: dask distributed enabled
 catchment_name: 'camelsx-v3' # Catchment case: CONUS_HUC12, camels, camelsx-v3
 saveCSV: True    # True: save attributes for each HRU in csv
 saveNetCDF: True # True: save attributes for each HRU in netcdf
