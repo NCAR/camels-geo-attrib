@@ -12,7 +12,7 @@
 #mapping_file = '/glade/u/home/mizukami/proj/cmip6_hydro/camels/attributes/scripts/gen_mapping/weight_file/spatialweights_nldas12km_to_camels.nc'
 
 # camelsx-v3 basin
-src_dir: '/glade/derecho/scratch/mizukami/cmip6_hydro/camels/climate/nldas/camelsx-v3.gpkg'
+src_dir: '/glade/derecho/scratch/mizukami/cmip6_hydro/camels/climate/nldas/camelsx-v3'
 catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/calib_site_boundary_v3.gpkg'
 mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/attributes/scripts/gen_mapping/weight_file/spatialweights_NLDAS12km_to_camelsx-v3.nc'
 
