@@ -12,8 +12,8 @@
 #mapping_file = '/glade/u/home/mizukami/proj/cmip6_hydro/camels/attributes/scripts/gen_mapping/weight_file/spatialweights_nldas12km_to_camels.nc'
 
 # camelsx-v3 basin
-src_dir: '/glade/derecho/scratch/mizukami/cmip6_hydro/camels/climate/nldas/camelsx-v3'
-catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/calib_site_boundary_v3.gpkg'
+src_dir: '/glade/campaign/cgd/tss/people/andywood/proj/robust1/conus_summa/forcings/gpep2km-camelsx-v3a-3hr-summa'
+catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/calib_site_boundary_v3a.gpkg'
 mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/attributes/scripts/gen_mapping/weight_file/spatialweights_NLDAS12km_to_camelsx-v3.nc'
 
 # 
@@ -22,6 +22,7 @@ catchment_name: 'camelsx-v3' # Catchment case: CONUS_HUC12, camels, camelsx-v3
 saveCSV: True    # True: save attributes for each HRU in csv
 saveNetCDF: True # True: save attributes for each HRU in netcdf
 remap: False     # True: remap meteorological time series to HRUs
+aggregate_daily: True # True: aggregate sub-daily climate data to daily
 
 # catchment meta
 catch_attrs:
@@ -32,29 +33,38 @@ catch_attrs:
     camelsx-v3:
         id: 'GAGE_NID_INT64'
 
-# climate variables
+# climate netcdf variables
+# make sure wind speed is computed - if climate data include directional wind speed, compute wind speed by np.sqrt(a['uwnd']*a['uwnd'] + a['vwnd']*a['vwnd'])
 climate_vars:
-    sw_avg:
-        scale:
-            1
-    lw_avg:
-        scale:
-            1
-    prcp_avg:
-        scale:
-            24
-    tair_avg:
-        scale:
-            1
-    q_avg:
-        scale:
-            1
-    uwnd_avg:
-        scale:
-            1
-    vwnd_avg:
-        scale:
-            1
-    pres_avg:
-        scale:
-            0.001
+    hru_id:
+        name: "hruId"
+        scale: 1
+        offset: 0
+    sw:
+        name: "SWRadAtm"
+        scale: 1
+        offset: 0
+    lw:
+        name: "LWRadAtm"
+        scale: 1
+        offset: 0
+    precp:
+        name: "pptrate"
+        scale: 86400
+        offset: 0
+    tair:
+        name: "airtemp"
+        scale: 1
+        offset: -273.15
+    q:
+        name: "spechum"
+        scale: 1
+        offset: 0
+    wind:
+        name: "windspd"
+        scale: 1
+        offset: 0
+    p:
+        name: "airpres"
+        scale: 0.001
+        offset: 0
