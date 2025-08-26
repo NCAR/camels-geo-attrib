@@ -12,7 +12,7 @@ src_statsgo_dir: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/attributes/ingr
 #statsgo_mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_STATSGO_to_camels.nc'
 
 # camelsx-v3
-catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/calib_site_boundary_v3.gpkg'
+catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/calib_site_boundary_v3a.gpkg'
 pelletier_mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_Pelletier_global1km_to_camelsx-v3.nc'
 sg_mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_loca2_600m_to_camelsx-v3.nc'
 statsgo_mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_STATSGO_to_camelsx-v3.nc'
