@@ -34,16 +34,16 @@ def retention_slope_ptf1(sand: xr.DataArray, silt: xr.DataArray):
     xr.DataArray:
          slope of retention curve in log scale [-]
     """
-    
+
     if sand.attrs['units'] not in ['percent', 'frac', 'fraction']:
         raise Exception("unit of sand texture needs to be in percent, frac or fraction")
     if silt.attrs['units'] not in ['percent', 'frac', 'fraction']:
         raise Exception("unit of clay texture needs to be in percent, frac or fraction")
     if sand.attrs['units'] == 'frac' or sand.attrs['units'] == 'fraction':
         sand = sand * 100.0
-    if silt.attrs['units'] == 'frac' or silt.attrs['units'] == 'fraction':        
+    if silt.attrs['units'] == 'frac' or silt.attrs['units'] == 'fraction':
         silt = silt * 100.0
-            
+
     a = 3.1 + 0.157*silt- 0.003*sand
     return a
 
@@ -64,16 +64,16 @@ def matric_potential_ptf1(sand: xr.DataArray, silt: xr.DataArray):
     xr.DataArray:
          saturation matric potential [kPa]
     """
-    
+
     if sand.attrs['units'] not in ['percent', 'frac', 'fraction']:
         raise Exception("unit of sand texture needs to be in percent, frac or fraction")
     if silt.attrs['units'] not in ['percent', 'frac', 'fraction']:
         raise Exception("unit of clay texture needs to be in percent, frac or fraction")
     if sand.attrs['units'] == 'frac' or sand.attrs['units'] == 'fraction':
         sand = sand * 100.0
-    if silt.attrs['units'] == 'frac' or silt.attrs['units'] == 'fraction':        
+    if silt.attrs['units'] == 'frac' or silt.attrs['units'] == 'fraction':
         silt = silt * 100.0
-        
+
     a = -1* (10.0**(1.54- 0.0095* sand+ 0.0063* silt))*cmH2O2kPa # cosby equation give cm-H2O
     return a
 
@@ -100,10 +100,10 @@ def porosity_ptf1(clay: xr.DataArray, sand: xr.DataArray, bulk_density: xr.DataA
     if sand.attrs['units'] not in ['percent', 'frac', 'fraction']:
         raise Exception("unit of sand texture needs to be in percent, frac or fraction")
     if bulk_density.attrs['units'] not in ['g/cm^3', 'g/cm3','kg/m^3', 'kg/m3']:
-        raise Exception("unit of bulk_density needs to be g/cm^3, g/cm3, kg/m^3 or kg/m3") 
-    if clay.attrs['units'] == 'frac' or clay.attrs['units'] == 'fraction':        
+        raise Exception("unit of bulk_density needs to be g/cm^3, g/cm3, kg/m^3 or kg/m3")
+    if clay.attrs['units'] == 'frac' or clay.attrs['units'] == 'fraction':
         clay = clay * 100.0
-    if sand.attrs['units'] == 'frac' or sand.attrs['units'] == 'fraction':        
+    if sand.attrs['units'] == 'frac' or sand.attrs['units'] == 'fraction':
         sand = sand * 100.0
     if bulk_density.attrs['units'] == 'kg/m^3' or bulk_density.attrs['units'] == 'kg/m3':
         bulk_density = bulk_density *kgcm2gcm
@@ -127,18 +127,18 @@ def porosity_ptf2(sand: xr.DataArray, clay: xr.DataArray):
     Returns
     -------
     xr.DataArray:
-         porosity
+         porosity [-]
     """
-    
+
     if sand.attrs['units'] not in ['percent', 'frac', 'fraction']:
         raise Exception("unit of sand texture needs to be in percent, frac or fraction")
     if clay.attrs['units'] not in ['percent', 'frac', 'fraction']:
         raise Exception("unit of clay texture needs to be in percent, frac or fraction")
     if sand.attrs['units'] == 'frac' or sand.attrs['units'] == 'fraction':
         sand = sand * 100.0
-    if clay.attrs['units'] == 'frac' or clay.attrs['units'] == 'fraction':        
+    if clay.attrs['units'] == 'frac' or clay.attrs['units'] == 'fraction':
         clay = clay * 100.0
-            
+
     a = (50.5 - 0.142*sand- 0.037*clay)/100.0
     return a
 
@@ -177,7 +177,7 @@ def wilting_point_ptf1(porosity: xr.DataArray, matric_potential: xr.DataArray, r
     -------
     xr.DataArray:
          permanent wilting point
-    """    
+    """
     psi_wp = -1500.0 #kPa
     a = porosity*(psi_wp/matric_potential)**(-1.0/retention_slope)
     return a
@@ -199,20 +199,20 @@ def k_sat_ptf1(sand: xr.DataArray, clay: xr.DataArray):
     xr.DataArray:
          saturation hydraulic conductivity
     """
-    
+
     if sand.attrs['units'] not in ['percent', 'frac', 'fraction']:
         raise Exception("unit of sand texture needs to be in percent, frac or fraction")
     if clay.attrs['units'] not in ['percent', 'frac', 'fraction']:
         raise Exception("unit of clay texture needs to be in percent, frac or fraction")
     if sand.attrs['units'] == 'frac' or sand.attrs['units'] == 'fraction':
         sand = sand * 100.0
-    if clay.attrs['units'] == 'frac' or clay.attrs['units'] == 'fraction':        
+    if clay.attrs['units'] == 'frac' or clay.attrs['units'] == 'fraction':
         clay = clay * 100.0
-        
+
     a = 10.0**(-0.6 + 0.0126* sand - 0.0064* clay)*inch2m/hr2sec
     return a
 
-def vGn_alpha_ptf1(sand: xr.DataArray, bulk_density: xr.DataArray, soc: xr.DataArray):
+def vGn_alpha_ptf1(sand: xr.DataArray, clay: xr.DataArray, bulk_density: xr.DataArray, soc: xr.DataArray):
     """
     Compute saturation Van Genuchten alpha parameter [-] using a transfer function from
     Vereecken et al., 1989. soil texture needs to be in percent.
@@ -221,32 +221,41 @@ def vGn_alpha_ptf1(sand: xr.DataArray, bulk_density: xr.DataArray, soc: xr.DataA
     ----------
     sand: xr.DataArray
          sand percent. Unit is either fraction, frac, or percent
+    clay: xr.DataArray
+         clay percent. Unit is either fraction, frac, or percent
     bulk_density: xr.DataArray
          bulk density. Unit is g/cm3
     soc: xr.DataArray
          cray fraction. Unit is either fraction, frac, or percent
-    texture_unit: str
-         soil texture unit. default is frac
 
     Returns
     -------
     xr.DataArray:
-         Van Genuchten n parameter
+         Van Genuchten alpha parameter
     """
     if sand.attrs['units'] not in ['percent', 'frac', 'fraction']:
         raise Exception("unit of sand texture needs to be in percent, frac or fraction")
+    if clay.attrs['units'] not in ['percent', 'frac', 'fraction']:
+        raise Exception("unit of clay texture needs to be in percent, frac or fraction")
+    if soc.attrs['units'] not in ['percent', 'frac', 'fraction']:
+        raise Exception("unit of soil carbon needs to be in percent, frac or fraction")
     if bulk_density.attrs['units'] not in ['g/cm^3', 'g/cm3','kg/m^3', 'kg/m3']:
-        raise Exception("unit of bulk_density needs to be g/cm^3, g/cm2, kg/m^3 or kg/m3")        
+        raise Exception("unit of bulk_density needs to be g/cm^3, g/cm2, kg/m^3 or kg/m3")
+
     if sand.attrs['units'] == 'frac' or sand.attrs['units'] == 'fraction':
-        sand = sand * 100.0 
+        sand = sand * 100.0
+    if clay.attrs['units'] == 'frac' or clay.attrs['units'] == 'fraction':
+        clay = clay * 100.0
+    if soc.attrs['units'] == 'frac' or soc.attrs['units'] == 'fraction':
+        soc = soc * 100.0
     if bulk_density.attrs['units'] == 'kg/m^3' or bulk_density.attrs['units'] == 'kg/m3':
         bulk_density = bulk_density *kgcm2gcm
-        
+
     a = -1.0* np.exp(-2.486 + 0.025* sand - 0.351* soc*0.1 -2.617* bulk_density -
-                     0.023* clay)/cm2m
+                     0.023* clay)/cm2m # this equation use alpha*0.01 for regression alaysis, so have to mutliply 100
     return a
 
-def vGn_n_ptf1(sand: xr.DataArray, clay: xr.DataArray, silt: xr.DataArray):
+def vGn_n_ptf1(sand: xr.DataArray, clay: xr.DataArray):
     """
     Compute saturation Van Genuchten n parameter [-] using a transfer function from
     Vereecken et al., 1989. soil texture needs to be in percent.
@@ -263,16 +272,16 @@ def vGn_n_ptf1(sand: xr.DataArray, clay: xr.DataArray, silt: xr.DataArray):
     xr.DataArray:
          Van Genuchten n parameter
     """
-    
+
     if sand.attrs['units'] not in ['percent', 'frac', 'fraction']:
         raise Exception("unit of sand texture needs to be in percent, frac or fraction")
     if clay.attrs['units'] not in ['percent', 'frac', 'fraction']:
         raise Exception("unit of clay texture needs to be in percent, frac or fraction")
     if sand.attrs['units'] == 'frac' or sand.attrs['units'] == 'fraction':
         sand = sand * 100.0
-    if clay.attrs['units'] == 'frac' or clay.attrs['units'] == 'fraction':        
+    if clay.attrs['units'] == 'frac' or clay.attrs['units'] == 'fraction':
         clay = clay * 100.0
-        
+
     a = np.exp(0.053 + 0.009* sand - 0.013* clay + 0.00015* sand**2)
     a = a.where(a>=1.0, 1.01)
     return a
@@ -280,7 +289,7 @@ def vGn_n_ptf1(sand: xr.DataArray, clay: xr.DataArray, silt: xr.DataArray):
 def max_water_content_ptf1(porosity: xr.DataArray, total_soil_depth: xr.DataArray, layer_thickness: list):
     """
     Compute maximum water content [m]: sum(porosity_i x soil_thickness_i)
-    Addor et al., 2017, HESS. 
+    Addor et al., 2017, HESS.
     Arguments
     ----------
     porosity: xr.DataArray [lyr, x, y] or [lyr, hru]
@@ -346,10 +355,10 @@ def USDA_soil_classification(sand: xr.DataArray, clay: xr.DataArray, silt: xr.Da
         raise Exception("unit of silt texture needs to be in percent, frac or fraction")
     if sand.attrs['units'] == 'percent':
         sand = sand / 100.0
-    if clay.attrs['units'] == 'percent':        
+    if clay.attrs['units'] == 'percent':
         clay = clay / 100.0
-    if silt.attrs['units'] == 'percent':        
-        silt = silt / 100.0  
+    if silt.attrs['units'] == 'percent':
+        silt = silt / 100.0
 
     # Check if sand, clay and silt add up to more than 1
     sum = sand + clay + silt
@@ -360,8 +369,8 @@ def USDA_soil_classification(sand: xr.DataArray, clay: xr.DataArray, silt: xr.Da
         print('Clay + Sand + silt is not equal to 1')
 
     # Classification logic
-    #1: SAND, 2: LOAMY SAND, 3: SANDY LOAM, 
-    #4: SILT LOAM, 5: SILT, 6: LOAM, 7: SANDY CLAY LOAM, 8: SILTY CLAY LOAM, 
+    #1: SAND, 2: LOAMY SAND, 3: SANDY LOAM,
+    #4: SILT LOAM, 5: SILT, 6: LOAM, 7: SANDY CLAY LOAM, 8: SILTY CLAY LOAM,
     #9: CLAY LOAM, 10: SANDY CLAY, 11: SILTY CLAY, 12:CLAY
     coords = {}
     for coord_name in sand.coords:
@@ -388,7 +397,7 @@ def USDA_soil_classification(sand: xr.DataArray, clay: xr.DataArray, silt: xr.Da
 
     return dr1
 
-    
+
 def plot_USDA_soil_triangle():
     """
     Plotting the USDA soil texture triangle
