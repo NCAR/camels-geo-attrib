@@ -9,7 +9,7 @@ src_dir: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/attributes/ingredient/g
 #GLHYMPS_mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/attributes/scripts/gen_mapping/weight_file/spatialweights_GLHYMPS_to_camels.nc'
 
 # camelsx-v3
-catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/calib_site_boundary_v3.gpkg'
+catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/calib_site_boundary_v3a.gpkg'
 LiMW2015_mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_LiMW2015_to_camelsx-v3.nc'
 GLHYMPS_mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_GLHYMPS_to_camelsx-v3.nc'
 
