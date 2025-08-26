@@ -8,17 +8,17 @@ src_dir: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/attributes/ingredient/m
 #mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/attributes/scripts/gen_mapping/weight_file/spatialweights_nldas600m_to_camels.nc'
 
 # camelsx-v3
-catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/calib_site_boundary_v3.gpkg'
-mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_nldas600m_to_camelsx-v3.nc'
+#catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/calib_site_boundary_v3a.gpkg'
+#mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_nldas600m_to_camelsx-v3.nc'
 
 # HUC12
-#catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/conus_HUC12_merit_v7d_simplified.gpkg'
-#mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_nldas600m_to_CONUS_HUC12.nc'
+catch_gpkg: '/glade/campaign/ral/hap/mizukami/proj/cmip6_hydro/geospatial/conus_HUC12_merit_v7d_simplified.gpkg'
+mapping_file: '/glade/u/home/mizukami/proj/cmip6_hydro/camels/camels-geo-attrib/scripts/gen_mapping/weight_file/spatialweights_nldas600m_to_CONUS_HUC12.nc'
 
 
 # ---- catchment / computing / output options
 serial: True # False: dask distributed enabled
-catchment_name: 'camelsx-v3' # Catchment case: CONUS_HUC12, camels, camelsx-v3
+catchment_name: 'CONUS_HUC12' # Catchment case: CONUS_HUC12, camels, camelsx-v3a
 saveCSV: True    # True: save attributes for each HRU in csv
 saveNetCDF: True # True: save attributes for each HRU in netcdf
 remap: True     # True: remap meteorological time series to HRUs
@@ -29,7 +29,7 @@ catch_attrs:
         id: 'HUCIDXint'
     camels:
         id: 'GAGE_ID'
-    camelsx-v3:
+    camelsx-v3a:
         id: 'GAGE_NID_INT64'
 
 # ---- topography variables
