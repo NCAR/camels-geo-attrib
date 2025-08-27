@@ -32,12 +32,19 @@ catch_attrs:
     camelsx-v3a:
         id: 'GAGE_NID_INT64'
 
-# ---- topography variables
-# nc variable name: unit, and descriptions
-
-nc_var:
-    - 'landcover'
-    - 'lai'
+# ---- vegetation variables
+# nc variable name: original resoltion, unit, and descriptions
+nc_veg_dict:
+    landcover:
+        file: 'veg_NLDAS_float.nc'
+        resolution: '600m'
+        unit: '-'
+        long_name: 'IGBP land cover type'
+    lai: 
+        file: 'veg_NLDAS_float.nc'
+        resolution: '600m'
+        unit: 'm2/m2'
+        long_name: 'long term monthly LAI'
 
 IGBP:
     1: 'Evergreen needleleaf forests'
