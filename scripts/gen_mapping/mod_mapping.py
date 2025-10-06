@@ -34,7 +34,7 @@ if __name__ == '__main__':
 
   # Check data dimension size and sum of overlapping elements (expected to be the same)
   # grid2poly.py output skip data in data dimension, but poly2poly put missing values in data dimension
-  dim_data_size = ds.dims['data']
+  dim_data_size = ds.sizes['data']
   sum_overlaps  = ds.overlaps.values.sum()
   flag = False
   if dim_data_size != sum_overlaps:
