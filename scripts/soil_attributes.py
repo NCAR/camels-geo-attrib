@@ -7,21 +7,26 @@ import matplotlib.pyplot as plt
 
 # some unit conversions
 # --time
-hr2sec  = 3600.
+hr2sec  = 3600. # hour -> sec
 # --length
-inch2m = 0.0254
-cm2m   = 0.01
+inch2m = 0.0254  # inch -> meter
+cm2m   = 0.01  # centi-meter -> meter
 # --pressure
-cmH2O2kPa = 0.0980665
+cmH2O2kPa = 0.0980665  #
 kPa2mH2O = 0.10199773339984
 # -- density
 kgcm2gcm = 0.001 #kg/m3 -> g/cm3
 
-def retention_slope_ptf1(sand: xr.DataArray, silt: xr.DataArray):
+def retention_slope_ptf1(sand: xr.DataArray, clay: xr.DataArray):
     """
-    Compute slope of retention curve in log scale using a transfer function from
-    cosby et al., 1984
-    soil texture needs to be in percent
+    Compute slope of retention curve in log scale using a transfer function from:
+
+    Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn (1984),
+    A Statistical Exploration of the Relationships of Soil Moisture Characteristics to the Physical Properties of Soils, Water Resour. Res., 20(6), 682–690,
+    doi:10.1029/WR020i006p00682.
+
+    Note: soil texture needs to be in percent
+
     Arguments
     ----------
     sand: xr.DataArray
@@ -37,21 +42,26 @@ def retention_slope_ptf1(sand: xr.DataArray, silt: xr.DataArray):
 
     if sand.attrs['units'] not in ['percent', 'frac', 'fraction']:
         raise Exception("unit of sand texture needs to be in percent, frac or fraction")
-    if silt.attrs['units'] not in ['percent', 'frac', 'fraction']:
+    if clay.attrs['units'] not in ['percent', 'frac', 'fraction']:
         raise Exception("unit of clay texture needs to be in percent, frac or fraction")
     if sand.attrs['units'] == 'frac' or sand.attrs['units'] == 'fraction':
         sand = sand * 100.0
-    if silt.attrs['units'] == 'frac' or silt.attrs['units'] == 'fraction':
-        silt = silt * 100.0
+    if clay.attrs['units'] == 'frac' or clay.attrs['units'] == 'fraction':
+        clay = clay * 100.0
 
-    a = 3.1 + 0.157*silt- 0.003*sand
+    a = 3.1 + 0.157*clay- 0.003*sand
     return a
 
 def matric_potential_ptf1(sand: xr.DataArray, silt: xr.DataArray):
     """
-    Compute matric potential [kPa] using a transfer function from
-    cosby et al., 1984
-    soil texture needs to be in percent
+    Compute matric potential [kPa] using a transfer function from:
+
+    Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn (1984),
+    A Statistical Exploration of the Relationships of Soil Moisture Characteristics to the Physical Properties of Soils, Water Resour. Res., 20(6), 682–690,
+    doi:10.1029/WR020i006p00682.
+
+    Note: soil texture needs to be in percent
+
     Arguments
     ----------
     sand: xr.DataArray
@@ -77,10 +87,77 @@ def matric_potential_ptf1(sand: xr.DataArray, silt: xr.DataArray):
     a = -1* (10.0**(1.54- 0.0095* sand+ 0.0063* silt))*cmH2O2kPa # cosby equation give cm-H2O
     return a
 
-def porosity_ptf1(clay: xr.DataArray, sand: xr.DataArray, bulk_density: xr.DataArray):
+def porosity_ptf1(usda_soil_class: xr.DataArray, soilCategory='STATS-RUC') -> xr.DataArray:
     """
-    Compute porosity [fraction] using a transfer function from
-    Zacharias & Wessolek 2007. soil texture needs to be in percent
+    Obtain porosity based on  USDA soil classification. Use noah-mp soilparm table. See Table 3 in:
+
+    Campbell, P. C., Bash, J. O., & Spero, T. L. (2019).
+    Updates to the Noah land surface model in WRF-CMAQ to improve simulated meteorology, air quality, and deposition. Journal of Advances in Modeling Earth Systems, 11, 231–256.
+    https://doi.org/10.1029/2018MS001422
+
+    Arguments
+    ----------
+    usda_soil_class: xr.DataArray
+         soil class ID. 1-12
+
+    Returns
+    -------
+    xr.DataArray:
+         permanent wilting point [frac]
+    """
+
+    # Classification logic
+    #1: SAND, 2: LOAMY SAND, 3: SANDY LOAM,
+    #4: SILT LOAM, 5: SILT, 6: LOAM, 7: SANDY CLAY LOAM, 8: SILTY CLAY LOAM,
+    #9: CLAY LOAM, 10: SANDY CLAY, 11: SILTY CLAY, 12:CLAY
+    coords = {}
+    for coord_name in usda_soil_class.coords:
+        coords[coord_name] = (list(usda_soil_class.coords[coord_name].dims), usda_soil_class[coord_name].values)
+    a = xr.DataArray(
+        data=np.ones(usda_soil_class.shape, dtype=np.float32)*-999.,
+        dims=list(usda_soil_class.dims),
+        coords=coords,
+        attrs={'long_name':'porosity', 'unit':'-'}
+    )
+    if soilCategory=='STAS':
+       # Classification logic
+        a = xr.where(usda_soil_class==1, 0.339, a)  # 1 'SAND'
+        a = xr.where(usda_soil_class==2, 0.421, a) # 2 'LOAMY SAND'
+        a = xr.where(usda_soil_class==3, 0.434, a) # 3 'SANDY LOAM'
+        a = xr.where(usda_soil_class==4, 0.476, a) # 4 'SILT LOAM'
+        a = xr.where(usda_soil_class==5, 0.476, a) # 5 'SILT'
+        a = xr.where(usda_soil_class==6, 0.439, a) # 6 'LOAM'
+        a = xr.where(usda_soil_class==7, 0.404, a) # 7 'SANDY CLAY LOAM'
+        a = xr.where(usda_soil_class==8, 0.464, a) # 8 'SILTY CLAY LOAM'
+        a = xr.where(usda_soil_class==9, 0.465, a) # 9 'CLAY LOAM'
+        a = xr.where(usda_soil_class==10, 0.406, a) # 10 'SANDY CLAY'
+        a = xr.where(usda_soil_class==11, 0.468, a) # 11 'SILTY CLAY'
+        a = xr.where(usda_soil_class==12, 0.468, a) # 12 'CLAY'
+    elif soilCategory=='STAS-RUC':
+        # Classification logic
+        a = xr.where(usda_soil_class==1, 0.395, a)  # 1 'SAND'
+        a = xr.where(usda_soil_class==2, 0.410, a) # 2 'LOAMY SAND'
+        a = xr.where(usda_soil_class==3, 0.435, a) # 3 'SANDY LOAM'
+        a = xr.where(usda_soil_class==4, 0.485, a) # 4 'SILT LOAM'
+        a = xr.where(usda_soil_class==5, 0.485, a) # 5 'SILT'
+        a = xr.where(usda_soil_class==6, 0.451, a) # 6 'LOAM'
+        a = xr.where(usda_soil_class==7, 0.420, a) # 7 'SANDY CLAY LOAM'
+        a = xr.where(usda_soil_class==8, 0.477, a) # 8 'SILTY CLAY LOAM'
+        a = xr.where(usda_soil_class==9, 0.476, a) # 9 'CLAY LOAM'
+        a = xr.where(usda_soil_class==10, 0.426, a) # 10 'SANDY CLAY'
+        a = xr.where(usda_soil_class==11, 0.492, a) # 11 'SILTY CLAY'
+        a = xr.where(usda_soil_class==12, 0.482, a) # 12 'CLAY'
+
+    return a
+
+def porosity_ptf2(clay: xr.DataArray, sand: xr.DataArray, bulk_density: xr.DataArray):
+    """
+    Compute porosity [fraction] using a transfer function from:
+
+    Zacharias & Wessolek 2007.
+
+    Note:soil texture needs to be in percent
+
     Arguments
     ----------
     cray: xr.DataArray
@@ -113,10 +190,16 @@ def porosity_ptf1(clay: xr.DataArray, sand: xr.DataArray, bulk_density: xr.DataA
 
     return a
 
-def porosity_ptf2(sand: xr.DataArray, clay: xr.DataArray):
+def porosity_ptf3(sand: xr.DataArray, clay: xr.DataArray):
     """
-    Compute porosity [fraction] using a transfer function from
-    cosby et al., 1984. soil texture needs to be in percent
+    Compute porosity [fraction] using a transfer function from:
+
+    Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn (1984),
+    A Statistical Exploration of the Relationships of Soil Moisture Characteristics to the Physical Properties of Soils, Water Resour. Res., 20(6), 682–690,
+    doi:10.1029/WR020i006p00682.
+
+    Note: soil texture needs to be in percent
+
     Arguments
     ----------
     sand: xr.DataArray
@@ -142,10 +225,118 @@ def porosity_ptf2(sand: xr.DataArray, clay: xr.DataArray):
     a = (50.5 - 0.142*sand- 0.037*clay)/100.0
     return a
 
-def field_capacity_ptf1(porosity: xr.DataArray, matric_potential: xr.DataArray, retention_slope: xr.DataArray):
+def field_capacity_ptf1(usda_soil_class: xr.DataArray, soilCategory='STATS-RUC') -> xr.DataArray:
+    """
+    Obtain field capacity based on  USDA soil classification. Use noah-mp soilparm table. see table 3 in:
+
+    Campbell, P. C., Bash, J. O., & Spero, T. L. (2019).
+    Updates to the Noah land surface model in WRF-CMAQ to improve simulated meteorology, air quality, and deposition. Journal of Advances in Modeling Earth Systems, 11, 231–256.
+    https://doi.org/10.1029/2018MS001422
+
+    Arguments
+    ----------
+    usda_soil_class: xr.DataArray
+         soil class ID. 1-12
+
+    Returns
+    -------
+    xr.DataArray:
+         field capacity [frac]
+    """
+
+    # Classification logic
+    #1: SAND, 2: LOAMY SAND, 3: SANDY LOAM,
+    #4: SILT LOAM, 5: SILT, 6: LOAM, 7: SANDY CLAY LOAM, 8: SILTY CLAY LOAM,
+    #9: CLAY LOAM, 10: SANDY CLAY, 11: SILTY CLAY, 12:CLAY
+    coords = {}
+    for coord_name in usda_soil_class.coords:
+        coords[coord_name] = (list(usda_soil_class.coords[coord_name].dims), usda_soil_class[coord_name].values)
+    a = xr.DataArray(
+        data=np.ones(usda_soil_class.shape, dtype=np.float32)*-999.,
+        dims=list(usda_soil_class.dims),
+        coords=coords,
+        attrs={'long_name':'field capacity', 'unit':'-'}
+    )
+    if soilCategory=='STAS':
+        # Classification logic
+        a = xr.where(usda_soil_class==1, 0.236, a)  # 1 'SAND'
+        a = xr.where(usda_soil_class==2, 0.383, a) # 2 'LOAMY SAND'
+        a = xr.where(usda_soil_class==3, 0.383, a) # 3 'SANDY LOAM'
+        a = xr.where(usda_soil_class==4, 0.360, a) # 4 'SILT LOAM'
+        a = xr.where(usda_soil_class==5, 0.383, a) # 5 'SILT'
+        a = xr.where(usda_soil_class==6, 0.329, a) # 6 'LOAM'
+        a = xr.where(usda_soil_class==7, 0.314, a) # 7 'SANDY CLAY LOAM'
+        a = xr.where(usda_soil_class==8, 0.387, a) # 8 'SILTY CLAY LOAM'
+        a = xr.where(usda_soil_class==9, 0.382, a) # 9 'CLAY LOAM'
+        a = xr.where(usda_soil_class==10, 0.338, a) # 10 'SANDY CLAY'
+        a = xr.where(usda_soil_class==11, 0.404, a) # 11 'SILTY CLAY'
+        a = xr.where(usda_soil_class==12, 0.412, a) # 12 'CLAY'
+    elif soilCategory=='STAS-RUC':
+        # Classification logic
+        a = xr.where(usda_soil_class==1, 0.236, a)  # 1 'SAND'
+        a = xr.where(usda_soil_class==2, 0.383, a) # 2 'LOAMY SAND'
+        a = xr.where(usda_soil_class==3, 0.383, a) # 3 'SANDY LOAM'
+        a = xr.where(usda_soil_class==4, 0.360, a) # 4 'SILT LOAM'
+        a = xr.where(usda_soil_class==5, 0.383, a) # 5 'SILT'
+        a = xr.where(usda_soil_class==6, 0.329, a) # 6 'LOAM'
+        a = xr.where(usda_soil_class==7, 0.314, a) # 7 'SANDY CLAY LOAM'
+        a = xr.where(usda_soil_class==8, 0.387, a) # 8 'SILTY CLAY LOAM'
+        a = xr.where(usda_soil_class==9, 0.382, a) # 9 'CLAY LOAM'
+        a = xr.where(usda_soil_class==10, 0.338, a) # 10 'SANDY CLAY'
+        a = xr.where(usda_soil_class==11, 0.404, a) # 11 'SILTY CLAY'
+        a = xr.where(usda_soil_class==12, 0.412, a) # 12 'CLAY'
+    return a
+
+def field_capacity_ptf2(sand: xr.DataArray, clay: xr.DataArray, occ: xr.DataArray):
     """
     Compute field capacity[frac] using a transfer function from
-    cosby et al., 1984. soil texture needs to be in percent
+
+    Amsili, et al., 2024. soil texture needs to be in percent
+    Pedotransfer Functions for Field Capacity, Permanent Wilting Point, and Available Water Capacity Based on Random Forest Models for Routine Soil Health Analysis
+    https://doi.org/10.1080/00103624.2024.2336573
+
+    Arguments
+    ----------
+    sand: xr.DataArray
+         sand . Unit is fraction (g/g)
+    clay: xr.DataArray
+         clay.  Unit is fraction (g/g)
+    occ: xr.DataArray
+        soil organic carbon.  Unit is percent(%)
+    Returns
+    -------
+    xr.DataArray:
+         field capacity
+    """
+    if sand.attrs['units'] not in ['percent', 'frac', 'fraction']:
+        raise Exception("unit of sand texture needs to be in percent, frac or fraction")
+    if clay.attrs['units'] not in ['percent', 'frac', 'fraction']:
+        raise Exception("unit of clay texture needs to be in percent, frac or fraction")
+    if sand.attrs['units'] == 'percent':
+        sand = sand / 100.0
+    if clay.attrs['units'] == 'percent':
+        clay = clay / 100.0
+    if occ.attrs['units'] == 'percent':
+        occ = occ / 100.0
+
+    som=occ/0.58 # soil organic carbon [frac] to soil organic matter [frac]
+    a = 0.3477 - 0.313*sand + 0.040*clay + 1.855*som + 0.222*(sand*clay) + 1.405*(sand*som) - 0.202*(clay*som)
+    return a
+
+def field_capacity_ptf3(porosity: xr.DataArray, matric_potential: xr.DataArray, retention_slope: xr.DataArray):
+    """
+    Compute field capacity[frac] using a transfer function from:
+
+    Dingman, Physical hydrology, chapter 6.4
+
+    or
+
+    Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn (1984),
+    A Statistical Exploration of the Relationships of Soil Moisture Characteristics to the Physical Properties of Soils, Water Resour. Res., 20(6), 682–690,
+    doi:10.1029/WR020i006p00682.
+
+    Note: matric potential [kPa] and retention curve slope, b have to be computed
+
     Arguments
     ----------
     porosity: xr.DataArray
@@ -158,14 +349,123 @@ def field_capacity_ptf1(porosity: xr.DataArray, matric_potential: xr.DataArray, 
     xr.DataArray:
          field capacity
     """
-    psi_fc=-10.0 #kPa
-    a = porosity*(psi_fc/matric_potential)**(-1.0/retention_slope)
+    psi_fc=-33.0 #kPa
+    a = porosity*(matric_potential/psi_fc)**(1.0/retention_slope)
     return a
 
-def wilting_point_ptf1(porosity: xr.DataArray, matric_potential: xr.DataArray, retention_slope: xr.DataArray):
+def wilting_point_ptf1(usda_soil_class: xr.DataArray, soilCategory='STATS-RUC') -> xr.DataArray:
+    """
+    Obtain permanent wilting point based on  USDA soil classification. Use noah-mp soilparm table. See table 3 in
+
+    Campbell, P. C., Bash, J. O., & Spero, T. L. (2019).
+    Updates to the Noah land surface model in WRF-CMAQ to improve simulated meteorology, air quality, and deposition. Journal of Advances in Modeling Earth Systems, 11, 231–256.
+    https://doi.org/10.1029/2018MS001422
+
+    Arguments
+    ----------
+    usda_soil_class: xr.DataArray
+         soil class ID. 1-12
+
+    Returns
+    -------
+    xr.DataArray:
+         permanent wilting point [frac]
+    """
+
+    # Classification logic
+    #1: SAND, 2: LOAMY SAND, 3: SANDY LOAM,
+    #4: SILT LOAM, 5: SILT, 6: LOAM, 7: SANDY CLAY LOAM, 8: SILTY CLAY LOAM,
+    #9: CLAY LOAM, 10: SANDY CLAY, 11: SILTY CLAY, 12:CLAY
+    coords = {}
+    for coord_name in usda_soil_class.coords:
+        coords[coord_name] = (list(usda_soil_class.coords[coord_name].dims), usda_soil_class[coord_name].values)
+    a = xr.DataArray(
+        data=np.ones(usda_soil_class.shape, dtype=np.float32)*-999.,
+        dims=list(usda_soil_class.dims),
+        coords=coords,
+        attrs={'long_name':'permanent wilting point', 'unit':'-'}
+    )
+    if soilCategory=='STAS':
+        # Classification logic
+        a = xr.where(usda_soil_class==1, 0.010, a)  # 1 'SAND'
+        a = xr.where(usda_soil_class==2, 0.028, a) # 2 'LOAMY SAND'
+        a = xr.where(usda_soil_class==3, 0.047, a) # 3 'SANDY LOAM'
+        a = xr.where(usda_soil_class==4, 0.084, a) # 4 'SILT LOAM'
+        a = xr.where(usda_soil_class==5, 0.084, a) # 5 'SILT'
+        a = xr.where(usda_soil_class==6, 0.066, a) # 6 'LOAM'
+        a = xr.where(usda_soil_class==7, 0.067, a) # 7 'SANDY CLAY LOAM'
+        a = xr.where(usda_soil_class==8, 0.120, a) # 8 'SILTY CLAY LOAM'
+        a = xr.where(usda_soil_class==9, 0.103, a) # 9 'CLAY LOAM'
+        a = xr.where(usda_soil_class==10, 0.100, a) # 10 'SANDY CLAY'
+        a = xr.where(usda_soil_class==11, 0.126, a) # 11 'SILTY CLAY'
+        a = xr.where(usda_soil_class==12, 0.138, a) # 12 'CLAY'
+    elif soilCategory=='STAS-RUC':
+        # Classification logic
+        a = xr.where(usda_soil_class==1, 0.068, a)  # 1 'SAND'
+        a = xr.where(usda_soil_class==2, 0.075, a) # 2 'LOAMY SAND'
+        a = xr.where(usda_soil_class==3, 0.114, a) # 3 'SANDY LOAM'
+        a = xr.where(usda_soil_class==4, 0.179, a) # 4 'SILT LOAM'
+        a = xr.where(usda_soil_class==5, 0.179, a) # 5 'SILT'
+        a = xr.where(usda_soil_class==6, 0.155, a) # 6 'LOAM'
+        a = xr.where(usda_soil_class==7, 0.175, a) # 7 'SANDY CLAY LOAM'
+        a = xr.where(usda_soil_class==8, 0.218, a) # 8 'SILTY CLAY LOAM'
+        a = xr.where(usda_soil_class==9, 0.250, a) # 9 'CLAY LOAM'
+        a = xr.where(usda_soil_class==10, 0.219, a) # 10 'SANDY CLAY'
+        a = xr.where(usda_soil_class==11, 0.283, a) # 11 'SILTY CLAY'
+        a = xr.where(usda_soil_class==12, 0.286, a) # 12 'CLAY'
+
+    return a
+
+def wilting_point_ptf2(sand: xr.DataArray, clay: xr.DataArray, occ: xr.DataArray):
     """
     Compute permanent wilting point [frac] using a transfer function from
-    cosby et al., 1984. soil texture needs to be in percent
+
+    Amsili, et al., 2024. soil texture needs to be in percent
+    Pedotransfer Functions for Field Capacity, Permanent Wilting Point, and Available Water Capacity Based on Random Forest Models for Routine Soil Health Analysis
+    https://doi.org/10.1080/00103624.2024.2336573
+
+    Arguments
+    ----------
+    sand: xr.DataArray
+         sand . Unit is fraction (g/g)
+    clay: xr.DataArray
+         clay.  Unit is fraction (g/g)
+    occ: xr.DataArray
+        soil organic carbon.  Unit is percent(%)
+    Returns
+    -------
+    xr.DataArray:
+         field capacity
+    """
+    if sand.attrs['units'] not in ['percent', 'frac', 'fraction']:
+        raise Exception("unit of sand texture needs to be in percent, frac or fraction")
+    if clay.attrs['units'] not in ['percent', 'frac', 'fraction']:
+        raise Exception("unit of clay texture needs to be in percent, frac or fraction")
+    if sand.attrs['units'] == 'percent':
+        sand = sand / 100.0
+    if clay.attrs['units'] == 'percent':
+        clay = clay / 100.0
+    if occ.attrs['units'] == 'percent':
+        occ = occ / 100.0
+
+    som=occ/0.58 # soil organic carbon [frac] to soil organic matter [frac]
+    a = 0.0132 - 0.014*sand + 0.244*clay + 1.158*som
+    return a
+
+def wilting_point_ptf3(porosity: xr.DataArray, matric_potential: xr.DataArray, retention_slope: xr.DataArray):
+    """
+    Compute permanent wilting point [frac] using a transfer function from:
+
+    Dingman, Physical hydrology, chapter 6.4
+
+    or
+
+    Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn (1984),
+    A Statistical Exploration of the Relationships of Soil Moisture Characteristics to the Physical Properties of Soils, Water Resour. Res., 20(6), 682–690,
+    doi:10.1029/WR020i006p00682.
+
+    Note: matric potential [kPa] and retention curve slope, b have to be computed
+
     Arguments
     ----------
     porosity: xr.DataArray
@@ -179,14 +479,21 @@ def wilting_point_ptf1(porosity: xr.DataArray, matric_potential: xr.DataArray, r
          permanent wilting point
     """
     psi_wp = -1500.0 #kPa
-    a = porosity*(psi_wp/matric_potential)**(-1.0/retention_slope)
+    a = porosity*(matric_potential/psi_wp)**(1.0/retention_slope)
     return a
+
 
 def k_sat_ptf1(sand: xr.DataArray, clay: xr.DataArray):
     # cosby et al., 1984 given in inch/hr
     """
-    Compute saturation hydraulic conductivity [m/s] using a transfer function from
-    cosby et al., 1984. soil texture needs to be in percent
+    Compute saturation hydraulic conductivity [m/s] using a transfer function from:
+
+    Cosby, B. J., G. M. Hornberger, R. B. Clapp, and T. R. Ginn (1984),
+    A Statistical Exploration of the Relationships of Soil Moisture Characteristics to the Physical Properties of Soils, Water Resour. Res., 20(6), 682–690,
+    doi:10.1029/WR020i006p00682.
+
+    Note:soil texture needs to be in percent
+
     Arguments
     ----------
     sand: xr.DataArray
@@ -214,9 +521,12 @@ def k_sat_ptf1(sand: xr.DataArray, clay: xr.DataArray):
 
 def vGn_alpha_ptf1(sand: xr.DataArray, clay: xr.DataArray, bulk_density: xr.DataArray, soc: xr.DataArray):
     """
-    Compute saturation Van Genuchten alpha parameter [-] using a transfer function from
-    Vereecken et al., 1989. soil texture needs to be in percent.
+    Compute saturation Van Genuchten alpha parameter [-] using a transfer function from:
+
     Vereecken et al., 1989: Estimating the soil moisture retention characteristic from texture, bulk density, and carbon content. Soil Sci. 148
+
+    Note:soil texture needs to be in percent.
+
     Arguments
     ----------
     sand: xr.DataArray
@@ -257,9 +567,12 @@ def vGn_alpha_ptf1(sand: xr.DataArray, clay: xr.DataArray, bulk_density: xr.Data
 
 def vGn_n_ptf1(sand: xr.DataArray, clay: xr.DataArray):
     """
-    Compute saturation Van Genuchten n parameter [-] using a transfer function from
-    Vereecken et al., 1989. soil texture needs to be in percent.
+    Compute saturation Van Genuchten n parameter [-] using a transfer function from:
+
     Vereecken et al., 1989: Estimating the soil moisture retention characteristic from texture, bulk density, and carbon content. Soil Sci. 148
+
+    Note:soil texture needs to be in percent.
+
     Arguments
     ----------
     sand: xr.DataArray
@@ -288,8 +601,10 @@ def vGn_n_ptf1(sand: xr.DataArray, clay: xr.DataArray):
 
 def max_water_content_ptf1(porosity: xr.DataArray, total_soil_depth: xr.DataArray, layer_thickness: list):
     """
-    Compute maximum water content [m]: sum(porosity_i x soil_thickness_i)
+    Compute maximum water content [m]: sum(porosity_i * soil_thickness_i)
+
     Addor et al., 2017, HESS.
+
     Arguments
     ----------
     porosity: xr.DataArray [lyr, x, y] or [lyr, hru]
@@ -321,7 +636,9 @@ def max_water_content_ptf1(porosity: xr.DataArray, total_soil_depth: xr.DataArra
 def USDA_soil_classification(sand: xr.DataArray, clay: xr.DataArray, silt: xr.DataArray) -> xr.DataArray:
     """
     Compute USDA classification based on sand, clay and slit fraction.
-    soil texture should be given in frac
+
+    Note: soil texture should be given in frac
+
     Arguments
     ----------
     sand: xr.DataArray
