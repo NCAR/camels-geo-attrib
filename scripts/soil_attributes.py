@@ -133,7 +133,7 @@ def porosity_ptf1(usda_soil_class: xr.DataArray, soilCategory='STATS-RUC') -> xr
         a = xr.where(usda_soil_class==10, 0.406, a) # 10 'SANDY CLAY'
         a = xr.where(usda_soil_class==11, 0.468, a) # 11 'SILTY CLAY'
         a = xr.where(usda_soil_class==12, 0.468, a) # 12 'CLAY'
-    elif soilCategory=='STAS-RUC':
+    elif soilCategory=='STATS-RUC':
         # Classification logic
         a = xr.where(usda_soil_class==1, 0.395, a)  # 1 'SAND'
         a = xr.where(usda_soil_class==2, 0.410, a) # 2 'LOAMY SAND'
@@ -271,7 +271,7 @@ def field_capacity_ptf1(usda_soil_class: xr.DataArray, soilCategory='STATS-RUC')
         a = xr.where(usda_soil_class==10, 0.338, a) # 10 'SANDY CLAY'
         a = xr.where(usda_soil_class==11, 0.404, a) # 11 'SILTY CLAY'
         a = xr.where(usda_soil_class==12, 0.412, a) # 12 'CLAY'
-    elif soilCategory=='STAS-RUC':
+    elif soilCategory=='STATS-RUC':
         # Classification logic
         a = xr.where(usda_soil_class==1, 0.236, a)  # 1 'SAND'
         a = xr.where(usda_soil_class==2, 0.383, a) # 2 'LOAMY SAND'
@@ -399,7 +399,7 @@ def wilting_point_ptf1(usda_soil_class: xr.DataArray, soilCategory='STATS-RUC') 
         a = xr.where(usda_soil_class==10, 0.100, a) # 10 'SANDY CLAY'
         a = xr.where(usda_soil_class==11, 0.126, a) # 11 'SILTY CLAY'
         a = xr.where(usda_soil_class==12, 0.138, a) # 12 'CLAY'
-    elif soilCategory=='STAS-RUC':
+    elif soilCategory=='STATS-RUC':
         # Classification logic
         a = xr.where(usda_soil_class==1, 0.068, a)  # 1 'SAND'
         a = xr.where(usda_soil_class==2, 0.075, a) # 2 'LOAMY SAND'
